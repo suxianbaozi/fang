@@ -61,3 +61,6 @@ for p in aa:
 total_count = 0
 for xi in xiaoqu:
     total_count += int(xi['count'])
+
+
+print(len(xiaoqu),total_count)
