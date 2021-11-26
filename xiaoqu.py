@@ -7,19 +7,21 @@ logging.captureWarnings(True)
 from threading import Thread
 import queue
 import json
+
 url_queue = queue.Queue()
-
-
+result_queue = queue.Queue()
 xiaoqu = []
 
+
 class Xiaoqu(Thread):
-    def __init__(self,queue):
+    def __init__(self,i):
         Thread.__init__(self)
-        self.queue = queue
+        self.i = i
+        self.result = []
 
     def run(self) -> None:
 
-        i = self.queue.get()
+        i = self.i
         url = 'https://sh.lianjia.com/xiaoqu/jiading/pg%d/' % i
         print(url)
         proxies = {
@@ -41,22 +43,22 @@ class Xiaoqu(Thread):
             detail = PyQuery(qu).find('.totalSellCount')
             name = detail.attr('title')
             count = detail.find('span').html()
-
-            xiaoqu.append({"name":name,"count":count})
             print(name,count)
-
-for i in range(1,50):
-    url_queue.put(i)
+            self.result.append({"name": name, "count": count})
 
 
 aa = []
-for i in range(0,49):
-    bb = Xiaoqu(url_queue)
+for i in range(1,50):
+    bb = Xiaoqu(i)
     aa.append(bb)
     bb.start()
 
 for p in aa:
     p.join()
+
+for p in aa:
+    xiaoqu.extend(p.result)
+
 
 total_count = 0
 for xi in xiaoqu:
