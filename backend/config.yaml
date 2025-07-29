@@ -1,0 +1,48 @@
+ai_models:
+
+- api_base: https://ark.cn-beijing.volces.com/api/v3
+  api_key: 87b2b6c9-ab67-4cb3-8399-13f1e3cb30d3
+  max_tokens: 2048
+  model_id: ep-20250625132624-kt9wj
+  name: deepseek-v3
+  provider: volcengine
+  temperature: 0.7
+
+- api_base: https://ark.cn-beijing.volces.com/api/v3
+  api_key: 87b2b6c9-ab67-4cb3-8399-13f1e3cb30d3
+  max_tokens: 2048
+  model_id: ep-20250219165302-wvhbs
+  name: doubao
+  provider: volcengine
+  temperature: 0.7
+
+
+- api_base: http://localhost:11434
+  max_tokens: 2048
+  model_id: llama2
+  name: 本地模型 (Ollama)
+  provider: ollama
+  temperature: 0.7
+default_model: doubao
+
+
+mcp_options:
+- description: 企业数据查询和统计功能
+  enabled: true
+  label: 企业数据查询
+  value: data_query
+  mcp_url: http://data.shuidi.cn/mcp/,
+- description: 企业风险查询，包括法律诉讼，开庭公告，等风险信息
+  enabled: true
+  label: 企业风险查询
+  value: file_processing
+  mcp_url: http://risk.data.shuidi.cn/mcp/
+
+
+
+server:
+  cors_origins:
+  - http://localhost:5173
+  - http://127.0.0.1:5173
+  host: 0.0.0.0
+  port: 8000
