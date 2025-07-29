@@ -185,8 +185,68 @@
 import { ref, reactive, nextTick, onMounted, watch } from 'vue';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
+// 导入highlight.js的CSS样式
 import 'highlight.js/styles/github.css';
 import { Setting, Refresh } from '@element-plus/icons-vue';
+
+// 配置marked的highlight扩展
+marked.use({
+  breaks: true,
+  gfm: true,
+  langPrefix: 'hljs language-',
+  highlight: function(code, lang) {
+    console.log('🎨 Highlighting code:', { 
+      codePreview: code.substring(0, 50) + (code.length > 50 ? '...' : ''), 
+      lang: lang || 'auto-detect',
+      codeLength: code.length 
+    });
+    
+    // 语言别名映射
+    const languageAliases = {
+      'js': 'javascript',
+      'ts': 'typescript',
+      'py': 'python',
+      'sh': 'bash',
+      'yml': 'yaml',
+      'md': 'markdown'
+    };
+    
+    // 如果没有指定语言，尝试自动检测
+    if (!lang) {
+      // 尝试自动检测JSON格式
+      try {
+        JSON.parse(code);
+        lang = 'json';
+        console.log('🔍 Auto-detected as JSON');
+      } catch (e) {
+        // 如果不是JSON，使用自动检测
+        const detected = hljs.highlightAuto(code);
+        console.log('🔍 Auto-detected language:', detected.language);
+        return detected.value;
+      }
+    }
+    
+    // 处理语言别名
+    const normalizedLang = languageAliases[lang] || lang;
+    console.log('🔄 Normalized language:', normalizedLang);
+    
+    // 检查语言是否被支持
+    if (hljs.getLanguage(normalizedLang)) {
+      try {
+        const result = hljs.highlight(code, { language: normalizedLang });
+        console.log('✅ Highlight successful for language:', normalizedLang);
+        return result.value;
+      } catch (e) {
+        console.warn('❌ Highlight.js error:', e);
+        return hljs.highlightAuto(code).value;
+      }
+    } else {
+      // 如果语言不被支持，使用自动检测
+      console.log('⚠️ Language not supported, using auto-detect:', normalizedLang);
+      return hljs.highlightAuto(code).value;
+    }
+  }
+});
 
 const API_BASE = 'http://localhost:8000';
 
@@ -211,50 +271,18 @@ const loadingMcpTools = ref({});
 
 onMounted(async () => {
   await loadConfig();
+  console.log('✅ ChatDialog mounted, marked highlight configured');
   
-  // 配置marked使用highlight.js进行代码高亮
-  marked.setOptions({
-    highlight: function(code, lang) {
-      // 语言别名映射
-      const languageAliases = {
-        'js': 'javascript',
-        'ts': 'typescript',
-        'py': 'python',
-        'sh': 'bash',
-        'yml': 'yaml',
-        'md': 'markdown'
-      };
-      
-      // 如果没有指定语言，尝试自动检测
-      if (!lang) {
-        // 尝试自动检测JSON格式
-        try {
-          JSON.parse(code);
-          lang = 'json';
-        } catch (e) {
-          // 如果不是JSON，使用自动检测
-          const detected = hljs.highlightAuto(code);
-          return detected.value;
-        }
-      }
-      
-      // 处理语言别名
-      const normalizedLang = languageAliases[lang] || lang;
-      
-      // 检查语言是否被支持
-      if (hljs.getLanguage(normalizedLang)) {
-        try {
-          return hljs.highlight(code, { language: normalizedLang }).value;
-        } catch (e) {
-          console.warn('Highlight.js error:', e);
-          return hljs.highlightAuto(code).value;
-        }
-      } else {
-        // 如果语言不被支持，使用自动检测
-        return hljs.highlightAuto(code).value;
-      }
-    },
-    langPrefix: 'hljs language-'
+  // 测试highlight功能
+  const testCode = 'const hello = "world";\nconsole.log(hello);';
+  const testMarkdown = '```javascript\n' + testCode + '\n```';
+  console.log('🧪 Testing highlight functionality...');
+  const testResult = marked.parse(testMarkdown);
+  console.log('🧪 Test result:', {
+    input: testMarkdown,
+    output: testResult,
+    hasHljs: testResult.includes('hljs'),
+    hasLanguageClass: testResult.includes('language-javascript')
   });
 });
 
@@ -569,7 +597,27 @@ watch(
 );
 
 function renderMarkdown(text) {
-  return marked.parse(text || '');
+  if (!text) return '';
+  
+  console.log('📄 Rendering markdown:', {
+    preview: text.substring(0, 100) + (text.length > 100 ? '...' : ''),
+    length: text.length,
+    hasCodeBlocks: text.includes('```'),
+    hasInlineCode: text.includes('`')
+  });
+  
+  try {
+    const html = marked.parse(text);
+    console.log('📄 Markdown rendered:', {
+      hasCodeElements: html.includes('<code>') || html.includes('<pre>'),
+      hasHljsClasses: html.includes('hljs'),
+      htmlPreview: html.substring(0, 200) + (html.length > 200 ? '...' : '')
+    });
+    return html;
+  } catch (error) {
+    console.error('❌ Markdown parsing error:', error);
+    return text;
+  }
 }
 
 
@@ -784,71 +832,87 @@ function renderMarkdown(text) {
   color: #fff;
 }
 
-/* 确保语法高亮在白色背景上可见 */
+/* 强制确保语法高亮样式生效 */
+.bubble-content :deep(pre code),
 .bubble-content :deep(.hljs) {
   background: #f8f9fa !important;
-  color: #24292e;
+  color: #24292e !important;
+  display: block !important;
+  padding: 0 !important;
+  overflow-x: visible !important;
 }
 
-/* 调整部分语法高亮颜色以提高对比度 */
+/* 强制语法高亮颜色 - 使用更高优先级 */
 .bubble-content :deep(.hljs-comment),
 .bubble-content :deep(.hljs-quote) {
-  color: #6a737d;
-  font-style: italic;
+  color: #6a737d !important;
+  font-style: italic !important;
 }
 
 .bubble-content :deep(.hljs-keyword),
 .bubble-content :deep(.hljs-selector-tag),
 .bubble-content :deep(.hljs-type) {
-  color: #d73a49;
-  font-weight: 600;
+  color: #d73a49 !important;
+  font-weight: 600 !important;
 }
 
-.bubble-content :deep(.hljs-string),
-.bubble-content :deep(.hljs-attr) {
-  color: #032f62;
+.bubble-content :deep(.hljs-string) {
+  color: #032f62 !important;
 }
 
-.bubble-content :deep(.hljs-number),
+.bubble-content :deep(.hljs-number) {
+  color: #005cc5 !important;
+}
+
 .bubble-content :deep(.hljs-literal) {
-  color: #005cc5;
+  color: #005cc5 !important;
 }
 
 .bubble-content :deep(.hljs-function),
 .bubble-content :deep(.hljs-title) {
-  color: #6f42c1;
-  font-weight: 600;
+  color: #6f42c1 !important;
+  font-weight: 600 !important;
 }
 
 /* JSON特定样式优化 */
 .bubble-content :deep(.hljs-attr) {
-  color: #005cc5;
-  font-weight: 600;
+  color: #005cc5 !important;
+  font-weight: 600 !important;
 }
 
-.bubble-content :deep(.hljs-string) {
-  color: #032f62;
+.bubble-content :deep(.hljs-name) {
+  color: #6f42c1 !important;
 }
 
-.bubble-content :deep(.hljs-number) {
-  color: #e36209;
-  font-weight: 500;
+.bubble-content :deep(.hljs-value) {
+  color: #032f62 !important;
 }
 
-.bubble-content :deep(.hljs-literal) {
-  color: #d73a49;
-  font-weight: 600;
+.bubble-content :deep(.hljs-punctuation) {
+  color: #6a737d !important;
 }
 
-/* JSON的键名高亮 */
-.bubble-content :deep(.hljs-attr)::before {
-  content: '';
+/* 针对不同语言的特殊样式 */
+.bubble-content :deep(.language-javascript .hljs-built_in),
+.bubble-content :deep(.language-js .hljs-built_in) {
+  color: #e36209 !important;
 }
 
-/* 增强JSON可读性 */
-.bubble-content :deep(.language-json .hljs-punctuation) {
-  color: #6a737d;
-  font-weight: 500;
+.bubble-content :deep(.language-python .hljs-built_in) {
+  color: #005cc5 !important;
+}
+
+.bubble-content :deep(.language-json .hljs-attr) {
+  color: #0451a5 !important;
+}
+
+.bubble-content :deep(.language-json .hljs-string) {
+  color: #0a3069 !important;
+}
+
+/* 确保代码块内的所有文本都有颜色 */
+.bubble-content :deep(pre code *) {
+  color: inherit !important;
 }
 
 /* 底部输入区 - 固定高度 */
@@ -1432,5 +1496,28 @@ function renderMarkdown(text) {
   will-change: auto;
   backface-visibility: hidden;
   perspective: 1000px;
+}
+
+/* 确保highlight.js样式优先级高于Element Plus */
+.bubble-content :deep(pre),
+.bubble-content :deep(code),
+.bubble-content :deep(.hljs) {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace !important;
+}
+
+/* 强制覆盖可能的Element Plus样式冲突 */
+.chat-bubble .bubble-content :deep(pre code) {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: inherit !important;
+  color: inherit !important;
+}
+
+/* 确保highlight.js的class样式生效 */
+.bubble-content :deep(.hljs-*) {
+  color: inherit !important;
 }
 </style> 
